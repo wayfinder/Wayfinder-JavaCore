@@ -1,0 +1,134 @@
+<!--
+  Copyright (c) 1999-2010, Vodafone Group Services
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions 
+  are met:
+  
+      * Redistributions of source code must retain the above copyright 
+        notice, this list of conditions and the following disclaimer.
+      * Redistributions in binary form must reproduce the above 
+        copyright notice, this list of conditions and the following 
+        disclaimer in the documentation and/or other materials provided 
+        with the distribution.
+      * Neither the name of Vodafone Group Services nor the names of its 
+        contributors may be used to endorse or promote products derived 
+        from this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+  OF SUCH DAMAGE.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>com.wayfinder.core.wfserver.resource</title>
+</head>
+<body>
+    <h1>The Resource Download Module</h1>
+    <p>
+    This module provides a standard way for downloading binary resources stored
+    on the server. Downloaded resources are cached on local stoarge, however,
+    access to resources is always done asynchronously. There is no memory
+    caching in core.  
+    </p>
+    <h3>The Resource Request</h3>
+    <p>
+    In order to obtain the needed resource, you first need to create a 
+    <code>ResourceRequest</code>.<br />
+    You do this by calling 
+    <code>ResourceRequest.createResourceRequest(int reqType, 
+    String serverResDirPath,String resName, 
+    ResourceResponseListener responseListener)</code>. This will return a
+    <code>ResourceRequest</code>.As for the meaning of the parameters:
+    </p>
+    <ul>
+        <li><b>reqType</b> refers to the purpose of this request, if it's
+        to get an image or some other kind of resources. Possible values
+        are <code>ResourceRequest.RESOURCE_TYPE_OTHER</code> and
+        <code>ResourceRequest.RESOURCE_TYPE_OTHER</code>. This will ultimately
+        determine the caching location for the requested resource.
+        </li>
+        
+        <li><b>serverResDirPath</b> is the dir path, on the server, of the 
+        requested resource. This is not an absolute path, but relative to the 
+        server URL. <i>Make sure that this contains both the leading and 
+        trailing "/".</i>
+        </li>
+        
+        <li><b>resName</b> is actually the name of the resource file, complete
+        with extension. There are cases where the server will not send the 
+        complete file name, omitting common things like file extension, for
+        instance ".png" for the various images. So before you create the
+        resource request, be sure to get the whole filename sorted out.
+        Any other prefix or suffix that might be needed should be added
+        before creating the request.
+        </li>
+        
+        <li><b>responseListener</b> is a listener that will be notified when
+        the resource becomes available, either after it's been downloaded or
+        loaded from the local cache. This listener will also be notified of
+        any errors.
+        </li>
+    </ul>
+    <p>
+    Here's how the location of an image resource is constructed: 
+    <code>SERVER_URL + serverResDirPath + resName</code>, where
+    <code>serverResDirPath</code> is of the form "/some_dir_path/" and
+    <code>resName</code> is of the form "some.file". <code>SERVRER_URL</code>
+    is defined inside the Core.
+    </p>
+    
+    <h3>Using the CachedResourceManager</h3>
+    <p>
+    A reference to <code>CachedResourceManager</code> is obtained from your
+    <code>Core</code> object. See <code>Core.getCachedResourceManager()</code>.
+    You will use this to queue your resource requests. This interface has
+    only one method <code>requestResource(ResourceRequest request)</code> which
+    returns a <code>RequestID</code> object to help keep track of requests. 
+    Provide a <code>ResourceRequest</code> set-up as described above. Making
+    several resource request one after the other will queue them up and they 
+    will be executed in the order they were added. 
+    </p>
+    
+    <h3>Getting the results</h3>
+    <p>
+    Since resources are always obtained asynchronously, you need to implement
+    the <code>ResourceResponseListener</code> interface in order to get the 
+    resource once it is available. You pass this listener as argument when 
+    creating the <code>ResourceRequest</code>. Your 
+    <code>ResourceResponseListener</code> must implement two methods,
+    <code>resourceAvailable(RequestID reqID, 
+    ResourceRequest originalRequest, byte[] resourceData)</code> and
+    <code>error(RequestID reqID, CoreError error)</code>.<br />
+    </p>
+    <h4><code>ResourceResponseListener.resourceAvailable(RequestID reqID, 
+    ResourceRequest originalRequest, byte[] resourceData)</code></h4>
+    <ul>
+        <li><b>reqID</b> is the RequestID created when the original request
+        was made.
+        </li>
+        <li><b>originalRequest</b> is the ResourceRequest matching this reply.
+        </li>
+        <li><b>resourceData</b> the binary contents of the resource file.
+        </li>
+    </ul>
+    <h4><code>ResourceResponseListener.error(RequestID reqID, 
+    CoreError error)</code></h4>
+    <ul>
+        <li><b>reqID</b> the RequestID of the original request</li>
+        <li><b>error</b> a CoreError object with details about the error
+        that occurred</li>
+    </ul>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!--
+  Copyright (c) 1999-2010, Vodafone Group Services
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions 
+  are met:
+  
+      * Redistributions of source code must retain the above copyright 
+        notice, this list of conditions and the following disclaimer.
+      * Redistributions in binary form must reproduce the above 
+        copyright notice, this list of conditions and the following 
+        disclaimer in the documentation and/or other materials provided 
+        with the distribution.
+      * Neither the name of Vodafone Group Services nor the names of its 
+        contributors may be used to endorse or promote products derived 
+        from this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+  OF SUCH DAMAGE.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>com.wayfinder.core.poiinfo</title>
+</head>
+<body>
+
+This package contains functionality for retrieving extra information on a POI 
+through the Java Core.
+
+<h1>POI info module</h1>
+
+<h3>POIs</h3>
+
+<p>
+Points of Interest (POIs) can be seen as landmarks. They're visible in the map,
+and can come up as results from a search. Only basic information is available 
+initially (usually the name and sometimes a short description). Other available
+info can be obtained through a request to the POI info module. <br/>
+You have to provide an ID string to identify the POI for which you request the
+data.
+</p>
+
+<h4>Search results as POIs</h4>
+<p>
+Any search result has an ID string associated. Since at first only basic info
+is sent in the search reply, this ID can be used to identify the search result
+and the extra information from our servers. <b>Beware that these IDs are not
+persistent.</b> However, they can be used for some time after the search was
+made, but <b>there's no point in storing them for later use</b>.
+</p>
+
+<h4>Map positions as POIs</h4>
+<p>
+Any map point can be identified through an ID string consisting of its MC2 
+coordinates and some other parameters. This string can be obtained from the
+map component.
+</p>
+
+<h3>POI info request</h3>
+
+<p>
+The POI info interface provides only one method, to initiate a POI info request.
+You need to supply the ID string and a listener (a class implementing the
+PoiInfoListener interface) that will get either the result of the request or 
+an error message.
+</p>
+
+<h4>Example</h4>
+<pre>
+public class InfoHandler implements PoiInfoListener {
+    
+    // Core reference
+    Core m_core;
+    
+    // useful to keep track of requests
+    RequestID m_reqID;
+    
+    // ...
+    
+    public void getInfo(String id) {
+        m_reqID = m_core.getPoiInfoInterface().requestInfo(id, this);
+    }
+    
+    // called from the POI info module when the request is successful
+    public void requestInfoDone(RequestID reqID, PoiInfo info) {
+        // do whatever you want with the info
+        System.out.println(info.toString());
+    }
+    
+    // called from the POI info module when there's an error 
+    public void error(RequestID reqID, CoreError err) {
+        // handle the error
+        System.out.println(err.getInternalMsg());
+    }
+}
+</pre>
+
+</body>
+</html>

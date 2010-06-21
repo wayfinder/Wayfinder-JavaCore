@@ -1,0 +1,217 @@
+<!--
+  Copyright (c) 1999-2010, Vodafone Group Services
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions 
+  are met:
+  
+      * Redistributions of source code must retain the above copyright 
+        notice, this list of conditions and the following disclaimer.
+      * Redistributions in binary form must reproduce the above 
+        copyright notice, this list of conditions and the following 
+        disclaimer in the documentation and/or other materials provided 
+        with the distribution.
+      * Neither the name of Vodafone Group Services nor the names of its 
+        contributors may be used to endorse or promote products derived 
+        from this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+  OF SUCH DAMAGE.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>com.wayfinder.core.search.provider</title>
+</head>
+<body>
+This package contains functionality for doing a provider search.
+
+<h1>Provider Search</h1>
+
+<h2>Introducing the provider search</h2>
+
+The provider search is a method of search where multiple providers are searched
+at once and the matches are returned separated into one MatchList per provider.
+
+<h2>Doing a provider search</h2>
+
+<h3>Initiating the search</h3>
+To initiate a merged search, follow these steps:
+<ol>
+<li>Obtain the Core</li>
+<li>Obtain the SearchInterface from the Core class</li>
+<li>Obtain the ProviderSearch from the SearchInterface</li>
+<li>Create a SearchQuery object representing what you wish to search for</li>
+<li>Call SearchQuery.search(SearchQuery, ProviderSearchListener), passing in the
+SearchQuery object and the listener that should recieve the results</li>
+</ol>
+
+<h2>The flow while searching</h2>
+
+Once the search() method has been called, the following will take place
+
+<ol>
+<li>The method ProviderSearchListener.usingExternalProviders(Provider[]) will be
+    called. This contains a list of all the external databases that will be
+    searched. The providers in this list should be displayed to the user for
+    legal reasons.</li>
+<li>The method ProviderSearchListener.searchUpdated() will be called everytime the
+    server sends an updated list of matches, <b>except</b> if the server states
+    that the search is completed. The provided reply contains all matches
+    received so far.</li>
+<li>Once the search is completely done, ProviderSearchListener.searchDone() will
+    be called. Once this is called, no more methods will be called until another
+    search takes place.</li>
+</ol>    
+
+Please note that if multiple searches take place at the same time, the
+RequestID can be used to separate the different searches.
+
+<h3>Example code</h3>
+The following code does a provider search for all places in Lund, Sweden that
+contains the word "bar". Please observe that this is just example code and is 
+not optimized for production usage.
+<p><pre>
+public class ProviderSearchTest 
+implements ProviderSearchListener {
+    
+    private RequestID currentID;
+    
+    //-------------------------------------------------------------------------
+    // This code involves specifiying the search query and initiating the
+    // search
+    
+    public void test(Core c) {
+        SearchQuery req = SearchQuery.createPositionalQuery(
+                "bar", 
+                null, 
+                // Position of Lund, Sweden
+                new Position(664744320, 157372032),
+                SearchQuery.RADIUS_SERVER_DEFAULT);
+        
+        SearchInterface sIfc = c.getSearchInterface();
+        ProviderSearch search = sIfc.getProviderSearch();
+        currentID = search.search(req, this);
+    }
+    
+    
+    //-------------------------------------------------------------------------
+    // in case of error
+    
+    public void error(RequestID requestID, CoreError error) {
+        System.out.println("SearchTest.error(): " + error.getInternalMsg());
+    }
+    
+    
+    //-------------------------------------------------------------------------
+    // The following code involves report-back during the search
+    
+    public void usingExternalProviders(RequestID reqID, SearchProvider[] providers) {
+        if(currentID.equals(reqID)) {
+            for (int i = 0; i < providers.length; i++) {
+                System.out.println("SearchTest.usingProviders(): Found provider: " + providers[i].getProviderName());
+            }
+        } 
+    }
+    
+    
+    public void searchUpdated(RequestID reqID, ProviderSearchReply reply) {
+        System.out.println("SearchTest.searchUpdated()");
+        // simple printout
+        if(currentID.equals(reqID)) {
+            printReply(reply);
+        } else {
+            System.err.println("Got stale reply, ignoring");
+        }
+    }
+    
+    
+    //-------------------------------------------------------------------------
+    // The following code is called once the search is done and marks the end
+    // of the request
+    
+    
+    public void searchDone(RequestID reqID, ProviderSearchReply reply) {
+        System.out.println("SearchTest.searchDone()");
+        // simple printout
+        if(currentID.equals(reqID)) {
+            printReply(reply);
+        } else {
+            System.err.println("Got stale reply, ignoring");
+        }
+    }
+    
+    
+    //-------------------------------------------------------------------------
+    // utility methods not included in the Core
+
+    
+    private static void printReply(ProviderSearchReply reply) {
+        final Position originalPosition = reply.getOriginalSearchQuery().getPosition();
+        final int size = reply.getNbrOfMatchLists();
+        System.out.println("Results found in " + size + " providers");
+        for (int i = 0; i < size; i++) {
+            MatchList currentList = reply.getMatchList(i);
+            SearchProvider provider = reply.getProviderOfList(i);
+            
+            printProviderInformation(provider);
+            printMatchList(currentList, originalPosition);
+        }
+    }
+    
+    
+    private static void printProviderInformation(SearchProvider provider) {
+        System.out.println("Found provider: " + provider.getProviderName());
+        System.out.println("Provider has data of type: " + provider.getProviderType());
+        System.out.println("Provider has image: " + provider.getProviderImageName());
+        System.out.println();
+    }
+    
+    
+    private static void printMatchList(MatchList list, Position originalPosition) {
+        // top matches
+        System.out.println("Top match text: " + list.getTextBeforeTopMatches());
+        final int nbrOfTopMatches = list.getNbrOfTopMatches();
+        System.out.println("Found " + nbrOfTopMatches + " top matches:");
+        for (int j = 0; j < nbrOfTopMatches; j++) {
+            SearchMatch match = list.getTopMatch(j);
+            printSingleMatch(match, originalPosition);
+        }
+        
+        // regular matches
+        System.out.println("Regular match text: " + list.getTextBeforeRegularMatches());
+        final int nbrOfMatches = list.getNbrOfRegularMatches();
+        System.out.println("Found " + nbrOfMatches + " regular matches:");
+        for (int j = 0; j < nbrOfMatches; j++) {
+            SearchMatch match = list.getRegularMatch(j);
+            printSingleMatch(match, originalPosition);
+        }
+    }
+
+    
+    private static void printSingleMatch(SearchMatch match, Position originalPosition) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Match name: " + match.getMatchName() + '\n');
+        sb.append("Match location: " + match.getMatchLocation() + '\n');
+        int distance = match.getPosition().distanceTo(originalPosition);
+        sb.append("Match distance: " + Integer.toString(distance) + '\n');
+        sb.append("Found in database: " + match.getSearchProvider().getProviderName() + '\n');
+        System.out.println(sb.toString());
+    }
+    
+}
+</pre></p>
+
+</body>
+</html>

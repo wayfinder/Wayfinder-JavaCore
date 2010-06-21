@@ -1,0 +1,108 @@
+<!--
+  Copyright (c) 1999-2010, Vodafone Group Services
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions 
+  are met:
+  
+      * Redistributions of source code must retain the above copyright 
+        notice, this list of conditions and the following disclaimer.
+      * Redistributions in binary form must reproduce the above 
+        copyright notice, this list of conditions and the following 
+        disclaimer in the documentation and/or other materials provided 
+        with the distribution.
+      * Neither the name of Vodafone Group Services nor the names of its 
+        contributors may be used to endorse or promote products derived 
+        from this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+  OF SUCH DAMAGE.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>com.wayfinder.core</title>
+</head>
+<body>
+Contains functionality for geocoding
+
+<h2>Geocoding</h2>
+<h3>Introduction</h3>
+The art of geocoding involves taking geographic data (addresses, street names,
+zip codes etc) and translating this into a set of coordinates (latitude,
+longitude).
+<p>
+
+<h3>Usage</h3>
+Currently there are no methods in this API for geocoding. To realize this, it's
+easier to use the methods through the search API to first search for a location
+and then take the position attached to the search hit.
+
+<h2>Reverse geocoding</h2>
+<h3>Introduction</h3>
+Reverse geocoding is basically the exact opposite of geocoding, eg taking a 
+position and translating this into geographic data - a name representing this 
+position. This name is usually an address, a name of the place or something 
+similar.
+<p>
+By using reverse geocoding in a client, an application can easily display
+information about any point in the map.
+<p>
+The response of the geocoding reply will also contain the TopRegion ID of the
+country or state the position is located in. By reverse geocoding the user's
+current position it can be used to identify the country the user is currently
+in.
+
+<h3>Usage</h3>
+
+Using this api is fairly straight forward:
+<ol>
+<li>Extract a position from another API or create one using coordinates</li>
+<li>Have a receiver class implement the GeocodeListener interface</li>
+<li>Grab the GeocodeInterface from the main Core class</li>
+<li>Call GeocodeInterface.reverseGeocode(Position, GeocodeListener)</li>
+<li>When done, the receiver class will be sent an AddressInfo object containing
+information about the position.</li>
+</ol>
+
+<h3>Example code</h3>
+
+(The class containing this code will implement the GeocodeListener interface)
+
+<pre>
+    private RequestID m_reqID;
+    
+    public void reverseGeocode(Core c) {
+        // we need a position, here's one in Lund, Sweden
+        Position p = new Position(664744320, 157372032);
+        
+        GeocodeInterface geoIfc = c.getGeocodeInterface();
+        // send request and remember the request ID
+        m_reqID = geoIfc.reverseGeocode(p, this);
+    }
+    
+    @Override  // method in the GeocodeListener interface
+    public void reverseGeocodeDone(RequestID requestID, AddressInfo adressInfo) {
+        // first check request id to ensure that the id matches, otherwise
+        // it could be an earlier, stale, reply
+        if(requestID.equals(m_reqID)) {
+            // response :D
+            System.out.print("Position is located in the city of: " + adressInfo.getCity());
+        }
+    }
+</pre>
+
+
+</body>
+</html>

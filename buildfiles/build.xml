@@ -1,0 +1,600 @@
+<!--
+  Copyright (c) 1999-2010, Vodafone Group Services
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions 
+  are met:
+  
+      * Redistributions of source code must retain the above copyright 
+        notice, this list of conditions and the following disclaimer.
+      * Redistributions in binary form must reproduce the above 
+        copyright notice, this list of conditions and the following 
+        disclaimer in the documentation and/or other materials provided 
+        with the distribution.
+      * Neither the name of Vodafone Group Services nor the names of its 
+        contributors may be used to endorse or promote products derived 
+        from this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+  OF SUCH DAMAGE.
+-->
+<project>
+
+    <!-- SETUP SECTION -->
+
+    <target name="initpaths">
+
+        <property environment="ENV"/>
+        <echo>Reading developer's config files for paths from:</echo>
+        <echo>../etc/develconfig/${user.name}/antproperties_paths.${ENV.COMPUTERNAME}.txt</echo>
+        <property file="../etc/develconfig/${user.name}/antproperties_paths.${ENV.COMPUTERNAME}.txt" />
+
+        <!-- Enforce setting of temp and dist dir paths to avoid accidental -->
+        <!-- deletion of random folders...                                  -->
+        <fail message="Please set path.tmpdir and path.distdir in your properties file">
+            <condition>
+                <and>
+                    <not>
+                        <isset property="path.tmpdir" />
+                    </not>
+                    <not>
+                        <isset property="path.distdir" />
+                    </not>
+                </and>
+            </condition>
+        </fail>
+        
+        <!-- set it to "dev" to signify that this build was made during -->
+        <!-- development. TeamCity and release builder will send this   -->
+        <!-- as argument instead                                        -->
+        <property name="version" value="dev"/>
+        <echo>Building as version: ${version}</echo>
+        
+        <property name="path.base" location=".."/>
+        <property name="path.build" location="${path.tmpdir}/build"/>
+        <property name="path.build.classes.1_1" value="${path.build}/classes_1_1"/>
+        <property name="path.build.classes.1_5" value="${path.build}/classes_1_5"/>
+        <property name="path.build.classes.1_6" value="${path.build}/classes_1_6"/>
+        <property name="path.final" location="${path.distdir}/dist"/>
+
+        <path id="ref.path.sdk">
+            <fileset file="${path.base}/sdk/core_sdk.jar"/>
+        </path>
+        
+        <!-- When compiling for 1.5, the compiler will optimize string -->
+        <!-- concatenation into using the StringBuilder class instead  -->
+        <!-- of the StringBuffer class. StringBuilder is a part of the -->
+        <!-- 1.5 language specification so we have to include that in  -->
+        <!-- the SDKs we pass to the tools. Note however that this     -->
+        <!-- class will never be used when writing code, only when     -->
+        <!-- compiling                                                 -->
+        <path id="ref.path.sdk.1_5">
+            <path refid="ref.path.sdk" />
+            <fileset file="${path.base}/sdk/compiler_support_1_5.jar"/>
+        </path>
+
+        <!-- Paths to all source folders -->
+        <path id="ref.path.src">
+            <pathelement location="${path.base}/core/src" />
+            <pathelement location="${path.base}/favorite/src" />
+            <pathelement location="${path.base}/geocoding/src" />
+            <pathelement location="${path.base}/map/src" />
+            <pathelement location="${path.base}/network/src" />
+            <pathelement location="${path.base}/pal/src" />
+            <pathelement location="${path.base}/poiinfo/src" />
+            <pathelement location="${path.base}/positioning/src" />
+            <pathelement location="${path.base}/route/src" />
+            <pathelement location="${path.base}/search/src" />
+            <pathelement location="${path.base}/server/src" />
+            <pathelement location="${path.base}/shared/src" />
+            <pathelement location="${path.base}/sound/src" />
+            <pathelement location="${path.base}/user/src" />
+        </path>
+
+        <!-- Paths to all folders that contain info that should be included -->
+        <!-- in the autogenerated javadoc                                   -->
+        <path id="ref.path.javadoc">
+            <path refid="ref.path.src" />
+            <pathelement location="${path.base}/core/doc" />
+            <pathelement location="${path.base}/favorite/doc" />
+            <pathelement location="${path.base}/geocoding/doc" />
+            <pathelement location="${path.base}/poiinfo/doc" />
+        	<pathelement location="${path.base}/positioning/doc" />
+            <pathelement location="${path.base}/search/doc" />
+            <pathelement location="${path.base}/server/doc" />
+        </path>
+        
+        <path id="ref.path.testsrc">
+            <pathelement location="${path.base}/core/test" />
+            <pathelement location="${path.base}/favorite/test" />
+            <pathelement location="${path.base}/network/test" />
+            <pathelement location="${path.base}/pal/test" />
+            <pathelement location="${path.base}/route/test" />
+            <pathelement location="${path.base}/search/test" />
+            <pathelement location="${path.base}/server/test" />
+            <pathelement location="${path.base}/shared/test" />
+            <pathelement location="${path.base}/map/test" />
+            <pathelement location="${path.base}/junit/test" />
+            <pathelement location="${path.base}/user/test" />
+            <pathelement location="${path.base}/positioning/test" />
+        </path>
+
+        <!-- Name of the project -->
+        <property name="project.name" value="Wayfinder Java Core API"/>
+
+        <!-- other options -->
+        <property name="distname.base" value="core-${version}"/>
+        <property name="encoding.java_src" value="utf-8" />
+        <property name="encoding.html.output" value="utf-8" />
+    </target>
+
+
+    <target name="clean" 
+            depends="initpaths"
+            description="Deletes the temp and dist dirs">
+        <delete dir="${path.build}" />
+        <delete dir="${path.final}" />
+    </target>
+
+
+    <!-- COMPILE SECTION -->
+
+    <!--             FOR NON-WAYFINDER DEVELOPERS                     -->
+    <!-- During development at Wayfinder, we used a non-standard SDK  -->
+    <!-- that only contained the classes that were shared between     -->
+    <!-- JSE, J2me, BlackBerry and Android                            -->
+    <!-- Due to licensing reasons when releasing this as open source  -->
+    <!-- we had to remove this library and replaced it with the       -->
+    <!-- standard JSE SDK. Sorry.                                     -->
+	
+    <target name="compile" 
+         depends="initpaths"
+         description="Compiles the Core classes">
+        
+        <antcall target="compile_1.1"/>
+        <antcall target="compile_1.5"/>
+        <antcall target="compile_1.6"/>    
+    </target>
+    
+    
+    <target name="compile_1.1" 
+         depends="initpaths"
+         description="Compiles the Core classes for Java 1.1">
+
+        <mkdir dir="${path.build}"/>
+        <mkdir dir="${path.build.classes.1_1}" />
+        <javac destdir="${path.build.classes.1_1}" 
+               source="1.3"
+               debug="true"
+               debuglevel="lines,vars,source"
+               target="1.1"
+               encoding="${encoding.java_src}">
+            <src refid="ref.path.src" />
+        </javac>
+        
+    </target>
+    
+    
+    <target name="compile_1.5" 
+         depends="initpaths"
+         description="Compiles the Core classes for Java 1.5">
+
+        <mkdir dir="${path.build}"/>
+        <mkdir dir="${path.build.classes.1_5}" />
+        <javac destdir="${path.build.classes.1_5}" 
+               source="1.3"
+               debug="true"
+               debuglevel="lines,vars,source"
+               target="1.5"
+               encoding="${encoding.java_src}">
+            <src refid="ref.path.src" />
+        </javac>
+    </target>
+    
+    
+    <target name="compile_1.6" 
+         depends="initpaths"
+         description="Compiles the Core classes for Java 1.6">
+
+        <mkdir dir="${path.build}"/>
+        <mkdir dir="${path.build.classes.1_6}" />
+        <javac destdir="${path.build.classes.1_6}"
+               source="1.3"
+               debug="true"
+               debuglevel="lines,vars,source"
+               target="1.6"
+               encoding="${encoding.java_src}">
+            <src refid="ref.path.src" />
+        </javac>
+    </target>
+
+    <target name="make_core_lib" 
+        depends="compile"
+        description="Creates a raw, unobfuscated jarfile from the compiled classes">
+
+        <jar destfile="${path.build}/core-raw-1_1.jar" basedir="${path.build.classes.1_1}">
+            <manifest>
+                  <!-- Who is building this jar? -->
+                  <attribute name="Library-Name" value="${project.name}"/>
+                  <!-- Information about the program itself -->
+                  <attribute name="Library-Vendor" value="Wayfinder Systems AB"/>
+                  <attribute name="Library-Version" value="${version}"/>
+            </manifest>    
+        </jar>    
+            
+        <jar destfile="${path.build}/core-raw-1_5.jar" basedir="${path.build.classes.1_5}">
+            <manifest>
+                  <!-- Who is building this jar? -->
+                  <attribute name="Library-Name" value="${project.name}"/>
+                  <!-- Information about the program itself -->
+                  <attribute name="Vendor" value="Wayfinder Systems AB"/>
+                  <attribute name="Version" value="${version}"/>
+            </manifest>    
+        </jar>
+        
+        <jar destfile="${path.build}/core-raw-1_6.jar" basedir="${path.build.classes.1_6}">
+            <manifest>
+                  <!-- Who is building this jar? -->
+                  <attribute name="Library-Name" value="${project.name}"/>
+                  <!-- Information about the program itself -->
+                  <attribute name="Vendor" value="Wayfinder Systems AB"/>
+                  <attribute name="Version" value="${version}"/>
+            </manifest>    
+        </jar>   
+    </target>
+
+    
+    <!-- POSTPROCESS SECTION -->
+
+    <target name="postprocess" 
+        depends="make_core_lib"
+        description="Runs optimization, shrinkage and obfuscation on the raw jarfile">
+        <mkdir dir="${path.final}"/>
+        <mkdir dir="${path.final}/lib"/>
+        <mkdir dir="${path.final}/proguard_map"/>
+        <taskdef resource="proguard/ant/task.properties"
+                 classpath="${path.tools.proguard}/lib/proguard.jar" />
+
+        <!-- FIXME - It might be possible to merge the two postprocessing -->
+        <!-- steps, but I have some concerns that dual obfuscation may    -->
+        <!-- corrupt the jarfile                                          -->
+        
+        <!-- FIXME - Currently using proguard to add preverification info -->
+        <!-- to the 1.1 versions. Allegedly it produces more compact      -->
+        <!-- stackmap information and it seems like it works fine on      -->
+        <!-- BlackBerry at least, but need to test this more along with   -->
+        <!-- the client team.                                             -->
+        
+        <!-- Note that Proguard will do 1.6 preverification automatically -->
+        <!-- When it detects that the classes are 1.6...                  -->
+    	
+    	<!--             FOR NON-WAYFINDER DEVELOPERS                     -->
+    	<!-- During development at Wayfinder, we used a non-standard SDK  -->
+    	<!-- that only contained the classes that were shared between     -->
+    	<!-- JSE, J2me, BlackBerry and Android                            -->
+    	<!-- Due to licensing reasons when releasing this as open source  -->
+    	<!-- we had to remove this library and replaced it with the       -->
+    	<!-- standard JSE SDK. Sorry.                                     -->
+    	
+
+    	<!-- === 1.6 VERSION WITH STANDARD PREVERIFICATION === -->
+
+        <!-- First process the debug version -->
+        <proguard configuration="${path.base}/etc/proguard/debug.pro">
+
+            <!-- Link to the Core SDK -->
+        	-libraryjars ${java.home}/lib/rt.jar
+            <!-- The raw core build -->
+            -injars      ${path.build}/core-raw-1_6.jar
+            <!-- The debug version of the Core -->
+            -outjars     ${path.final}/lib/${distname.base}-vm_1_6-debug.jar
+            <!-- Print the obfuscation mapping for stacktrace handling -->
+            -printmapping ${path.final}/proguard_map/${distname.base}-obfusc_mapping-vm_1_6-debug.map
+
+        </proguard>
+        
+        <jar destfile="${path.final}/lib/${distname.base}-vm_1_6-debug.jar" update="true">
+            <manifest>
+                  <attribute name="Library-Type" value="debug"/>
+                  <attribute name="Library-Classfileformat" value="1.6"/>
+            </manifest>    
+        </jar>    
+
+        <!-- Then remove the debug for the release version                  -->
+        <!-- Main difference here is that all debug printouts will be       -->
+        <!-- removed from this version                                      -->
+        <proguard configuration="${path.base}/etc/proguard/release.pro">
+
+            -libraryjars ${java.home}/lib/rt.jar
+            <!-- The raw core build -->
+            -injars      ${path.build}/core-raw-1_6.jar
+            <!-- The release version of the Core -->
+            -outjars     ${path.final}/lib/${distname.base}-vm_1_6-release.jar
+
+            <!-- Verbose to check that it works... -->
+            -verbose
+            
+        </proguard>
+        
+        <jar destfile="${path.final}/lib/${distname.base}-vm_1_6-release.jar" update="true">
+            <manifest>
+                  <attribute name="Library-Type" value="release"/>
+                  <attribute name="Library-Classfileformat" value="1.6"/>
+            </manifest>    
+        </jar>    
+        
+        
+        <!-- === 1.5 VERSION WITHOUT PREVERIFICATION === -->
+
+        <!-- First process the debug version -->
+        <proguard configuration="${path.base}/etc/proguard/debug.pro">
+
+            -libraryjars ${java.home}/lib/rt.jar
+            <!-- The raw core build -->
+            -injars      ${path.build}/core-raw-1_5.jar
+            <!-- The debug version of the Core -->
+            -outjars     ${path.final}/lib/${distname.base}-vm_1_5-debug.jar
+            <!-- Print the obfuscation mapping for stacktrace handling -->
+            -printmapping ${path.final}/proguard_map/${distname.base}-obfusc_mapping-vm_1_5-debug.map
+
+        </proguard>
+        
+        <jar destfile="${path.final}/lib/${distname.base}-vm_1_5-debug.jar" update="true">
+            <manifest>
+                  <attribute name="Library-Type" value="debug"/>
+                  <attribute name="Library-Classfileformat" value="1.5"/>
+            </manifest>    
+        </jar>    
+
+        <!-- Then remove the debug for the release version                  -->
+        <!-- Main difference here is that all debug printouts will be       -->
+        <!-- removed from this version                                      -->
+        <proguard configuration="${path.base}/etc/proguard/release.pro">
+
+            -libraryjars ${java.home}/lib/rt.jar
+            <!-- The raw core build -->
+            -injars      ${path.build}/core-raw-1_5.jar
+            <!-- The release version of the Core -->
+            -outjars     ${path.final}/lib/${distname.base}-vm_1_5-release.jar
+        </proguard>
+        
+        <jar destfile="${path.final}/lib/${distname.base}-vm_1_5-release.jar" update="true">
+            <manifest>
+                  <attribute name="Library-Type" value="release"/>
+                  <attribute name="Library-Classfileformat" value="1.5"/>
+            </manifest>    
+        </jar>    
+        
+        <!-- == 1.1 VERSION WITH MICROEDITION PREVERIFICATION ==-->
+        
+        <!-- First process the debug version -->
+        <!-- Proguard creates more compact mappings than Sun's preverifier -->
+        <proguard configuration="${path.base}/etc/proguard/debug.pro">
+
+            -libraryjars ${java.home}/lib/rt.jar
+            <!-- The raw core build -->
+            -injars      ${path.build}/core-raw-1_1.jar
+            <!-- The debug version of the Core -->
+            -outjars     ${path.final}/lib/${distname.base}-vm_1_1_preverified-debug.jar
+            <!-- Print the obfuscation mapping for stacktrace handling -->
+            -printmapping ${path.final}/proguard_map/${distname.base}-obfusc_mapping-vm_1_1_preverified-debug.map
+            
+            <!-- Enable preverification -->
+            -microedition
+
+        </proguard>
+        
+        <jar destfile="${path.final}/lib/${distname.base}-vm_1_1_preverified-debug.jar" update="true">
+            <manifest>
+                  <attribute name="Library-Type" value="debug"/>
+                  <attribute name="Library-Classfileformat" value="1.1 preverified"/>
+            </manifest>    
+        </jar>  
+    
+        <!-- again for the release version -->
+        <proguard configuration="${path.base}/etc/proguard/release.pro">
+
+            -libraryjars ${java.home}/lib/rt.jar
+            <!-- The raw core build -->
+            -injars      ${path.build}/core-raw-1_1.jar
+            <!-- The release version of the Core -->
+            -outjars     ${path.final}/lib/${distname.base}-vm_1_1_preverified-release.jar
+
+            <!-- Enable preverification -->
+            -microedition
+            
+        </proguard>
+        
+        <jar destfile="${path.final}/lib/${distname.base}-vm_1_1_preverified-release.jar" update="true">
+            <manifest>
+                  <attribute name="Library-Type" value="release"/>
+                  <attribute name="Library-Classfileformat" value="1.1 preverified"/>
+            </manifest>    
+        </jar>  
+
+    </target>
+
+
+    <!-- PACKAGE AND DEPLOY SECTION -->
+
+    <target name="make_javadoc" 
+        depends="compile"
+        description="Compile code and create javadoc">
+        <!-- depend on compile to not create javadoc for uncompilable code. -->
+
+        <!-- Create our javadoc -->
+        <mkdir dir="${path.build}/javadoc" />
+        <javadoc public="true"
+                 sourcepathref="ref.path.javadoc"
+                 destdir="${path.build}/javadoc"
+                 excludepackagenames="**.internal.**, 
+                                      **.internal, 
+                                      internal.**, 
+                                      com.wayfinder.pal, 
+                                      com.wayfinder.pal.**"
+                 defaultexcludes="yes"
+                 author="false"
+                 windowtitle="${project.name}"
+                 doctitle="${project.name} Documentation"
+                 bottom="${project.name}"
+                 header="${project.name}"
+                 footer="${project.name}"
+                 encoding="${encoding.java_src}"
+                 docencoding="${encoding.html.output}"/>
+
+        <mkdir dir="${path.final}/doc"/>
+        <zip destfile="${path.final}/doc/${distname.base}-javadoc.zip" basedir="${path.build}/javadoc"/>
+    </target>
+
+
+    <target name="deploy"
+            depends="postprocess, make_javadoc"
+            description="Creates the final jarfiles along with docs">
+    </target>
+
+    <!-- TEAMCITY SECTION -->
+
+
+    <!-- Testing -->
+    <target name="teamcity" 
+        depends="deploy"
+        description="Will be run by TeamCity in integration builds">
+        <!-- JUnit will automatically be run during "deploy" target -->
+        <antcall target="findbugs" inheritall="true" inheritrefs="true" />
+    </target>
+
+
+
+    <!-- JUnit testing -->
+
+    <target name="junit"
+        description="Runs all JUnit tests">
+
+        <mkdir dir="${path.build}/testclasses" />
+        <javac destdir="${path.build}/testclasses" 
+             classpath="${path.build.classes.1_5};${path.tools.junit}/junit.jar"
+             encoding="${encoding.java_src}">
+            <src refid="ref.path.testsrc" />
+        </javac>
+        <junit printsummary="yes" haltonfailure="true">
+            <classpath>
+                <pathelement location="${path.tools.junit}/junit.jar" />
+                <pathelement location="${path.build.classes.1_5}" />
+                <pathelement location="${path.build}/testclasses" />
+            </classpath>
+
+            <batchtest fork="yes">
+                <fileset dir="${path.build}/testclasses" includes="**/*Test.*"/>
+            </batchtest>
+        </junit>
+    </target>
+
+
+
+    <!-- Findbugs -->
+    <!-- This part will soon be retired in favor of Klocwork instead  -->
+    <!-- We'll leave it on during the transition phase to ensure that -->
+    <!-- Klocwork runs as intended                                    -->
+
+    <target name="findbugs"
+        description="Runs FindBugs on the code and produces a report">
+
+        <echo>Running FindBugs on build</echo>
+
+        <!-- Enable the tasks we use -->
+        <taskdef name="findbugs" 
+                 classname="edu.umd.cs.findbugs.anttask.FindBugsTask"
+                 classpath="${path.tools.findbugs}/lib/findbugs-ant.jar" />
+        <taskdef name="computeBugHistory" 
+                 classname="edu.umd.cs.findbugs.anttask.ComputeBugHistoryTask"
+                 classpath="${path.tools.findbugs}/lib/findbugs-ant.jar" />
+        <taskdef name="setBugDatabaseInfo" 
+                 classname="edu.umd.cs.findbugs.anttask.SetBugDatabaseInfoTask"
+                 classpath="${path.tools.findbugs}/lib/findbugs-ant.jar" />
+        <taskdef name="convertXmlToText" 
+                 classname="edu.umd.cs.findbugs.anttask.ConvertXmlToTextTask"
+                 classpath="${path.tools.findbugs}/lib/findbugs-ant.jar" />
+
+
+        <!-- Create the folders if nessecary -->
+        <mkdir dir="${path.build}/findbugs" />
+        <mkdir dir="${path.final}/findbugs" />
+
+        <!-- Set the working files -->
+        <property name="findbugs.tempfile" value="${path.build}/findbugs/findbugs_temp.xml"/>
+        <property name="findbugs.datafile" value="${path.build}/findbugs/findbugs_data.xml"/>
+        <property name="findbugs.historyfile" value="${path.build}/findbugs/out-hist.xml"/>
+        <property name="findbugs.htmlfile" value="${path.build}/findbugs/findbugs_report.htm"/>
+
+        <!-- Initialize the timestamp that is used in the findbugs report -->
+        <tstamp>
+            <format property="FINDBUGS_TIMESTAMP" pattern="EEEE, dd MMMM yyyy" locale="en,UK"/>
+        </tstamp>
+
+        <!-- run findbugs against code -->
+        <findbugs home="${path.tools.findbugs}"
+                  projectName="${project.name}"
+                  reportLevel="low"
+                  effort="max"
+                  adjustExperimental="true"
+                  outputFile="${findbugs.tempfile}"
+                  output="xml:withMessages"
+                  excludefilter="${path.base}/etc/findbugs/exclude_filter.xml"
+                  timeout="90000000"
+                  jvmargs="-Xmx512m"
+                  failonerror="true"
+                  debug="false"
+                  warningsProperty="findbugswarningsdetected">
+
+            <class location="${path.build.classes.1_1}" />
+            <auxClasspath refid="ref.path.sdk"/>
+            <sourcePath refid="ref.path.src" />
+        </findbugs>
+
+
+        <!-- Set info to the latest analysis -->
+        <echo>Running FindBugs analyze on files</echo>
+        <setBugDatabaseInfo home="${path.tools.findbugs}"
+                            withMessages="true"
+                            name="${FINDBUGS_TIMESTAMP}"
+                            timestamp="${FINDBUGS_TIMESTAMP}"
+                            input="${findbugs.tempfile}"
+                            output="${findbugs.datafile}"
+                            findSource="property.path.src"/>
+
+        <!-- TODO: Add findbugs history -->
+
+
+        <!-- Finally create the end report -->
+        <echo>Creating HTML report</echo>
+        <convertXmlToText home="${path.tools.findbugs}"
+                           input="${findbugs.datafile}"
+                           output="${findbugs.htmlfile}"
+                           longBugCodes="true"
+                           format="html:${path.base}/etc/findbugs/fancy-hist_modified.xsl"/>
+
+        <copy file="${findbugs.datafile}" todir="${path.final}/findbugs/" />
+        <copy file="${findbugs.htmlfile}" todir="${path.final}/findbugs/" />
+        <zip destfile="${path.final}/findbugs.zip"
+               basedir="${path.build}/findbugs"
+        />
+        <!-- REINSTATE!
+        <fail message="Findbugs has detected bugs">
+            <condition>
+                <isset property="findbugswarningsdetected"/>
+            </condition>
+        </fail>
+        -->
+    </target>
+
+</project>

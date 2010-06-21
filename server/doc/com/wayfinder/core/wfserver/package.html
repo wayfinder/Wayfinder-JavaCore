@@ -1,0 +1,118 @@
+<!--
+  Copyright (c) 1999-2010, Vodafone Group Services
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions 
+  are met:
+  
+      * Redistributions of source code must retain the above copyright 
+        notice, this list of conditions and the following disclaimer.
+      * Redistributions in binary form must reproduce the above 
+        copyright notice, this list of conditions and the following 
+        disclaimer in the documentation and/or other materials provided 
+        with the distribution.
+      * Neither the name of Vodafone Group Services nor the names of its 
+        contributors may be used to endorse or promote products derived 
+        from this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+  OF SUCH DAMAGE.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>com.wayfinder.core.wfserver</title>
+</head>
+
+<body>
+<p>This package contains functionality very related to the Wayfinder server itself. 
+</p>
+
+<h1>Tunneling data through the server</h1>
+<p> See  {@link com.wayfinder.core.wfserver.WFServerInterface#tunnel(com.wayfinder.core.wfserver.tunnel.TunnelRequest, com.wayfinder.core.wfserver.tunnel.TunnelResponseListener listener)}
+
+<h1>Client upgrade availability check</h1> 
+<p>The client can check the server if there is a new version available</p>
+<p>The actual upgrade process is handle by the client (actually by the platform itself).</p>
+
+<h2>Use scenarios</h2>
+<p>Usually the platform will provide automatic checking and upgrade to a new version but the are some cases that are not covered by that:</p>
+<li>Give possibility to check if the current version is not obsoleted (still work against the server) in that case the client can do a force update</li>
+<li>Update the clients that are embedded for those the platform cannot provide automatic checking</li>
+<li>Delay release provide a stub application to be embedded with the core that will do check and force update on first start</li>
+
+<h2>Usage and example code</h2>
+<p>In order to work in all cases this should be the first call that the client dose after creating the core. 
+The request is guarantee to work without any user activation.</p>
+<pre>
+    //Example code for client upgrade 
+    ...
+    ModuleData moduleData = new ModuleData(pal, serverData, new J2SECallBack());
+    Core core = CoreFactory.createFullCore(moduleData);
+    WFServerInterface serverIfc = core.getWfServerInterface();
+    serverIfc.clientUpgradeCheck(new UpgradeCheckListener() {
+    
+        @Override
+        public void error(RequestID requestID, CoreError error) {
+            //an error has occurred the request couldn't be finish
+            //this can be a network problem or a server error.
+        }
+        
+        public void loaded(RequestID id, int numberOfFavorites) {
+            //loaded with success now we can display a fully initialized list of 
+            //favorites         
+        }
+        
+        @Override
+        public void clientNotFound(RequestID reqId) {
+            //no client could be found check with server/service delivery, 
+            //this could also be a wrong configuration
+        }
+
+        @Override
+        public void clientUpToDate(RequestID reqId) {
+            //client was found but is up to date 
+            //this will happen most of the time
+        }
+
+        @Override
+        public void clientUpgrade(RequestID reqId, ClientUpgradeInfo upgradeInfo) {
+            //new version for the client is available
+            String newVersion = upgradeInfo.getLatestVersion();
+            
+            //the uri that point to the update, the content of that depend 
+            //on each the platform 
+            //e.g. Android market://details?id=com.vodafone.android.navigation 
+            String updateUri = upgradeInfo.getUpgradeUri();
+            if (upgradeInfo.isForceUpgrade()) {
+                //show a confirmation dialog for updating
+                //use the updateUri to update the application if user accept                
+                //close the application if the user refuse  
+            } else {
+                //show a confirmation dialog for updating
+                //use the updateUri to update the application if user accept                
+                //let the user continue using the application if user refuse
+            }
+        } 
+     });
+</pre>
+
+<h2>Current restrains</h2>
+<p>As the checking is base on {@link ServerData#getClientType()} and {@link ServerData#getVersionNumber()} only. 
+Be careful to use different client type for each application and for each "flavor" of the application that require separate updates.
+For Android this means each package name should have his own client type.</p>
+<p>Each new version of the application should work an all devices that have the previous version. The checking doesn't depend on device features, API version... which can be used in Android Market to filter incompatible devices</p> 
+
+</body>
+</html>

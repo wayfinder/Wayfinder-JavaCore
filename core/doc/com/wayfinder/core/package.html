@@ -1,0 +1,235 @@
+<!--
+  Copyright (c) 1999-2010, Vodafone Group Services
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions 
+  are met:
+  
+      * Redistributions of source code must retain the above copyright 
+        notice, this list of conditions and the following disclaimer.
+      * Redistributions in binary form must reproduce the above 
+        copyright notice, this list of conditions and the following 
+        disclaimer in the documentation and/or other materials provided 
+        with the distribution.
+      * Neither the name of Vodafone Group Services nor the names of its 
+        contributors may be used to endorse or promote products derived 
+        from this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+  OF SUCH DAMAGE.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>com.wayfinder.core</title>
+</head>
+<body>
+This package contains classes for creation of the Core
+
+<h1>Creating the Core</h1>
+
+<h2>Components required to create the Core</h2>
+<h3>The client type</h3>
+The client type is an unique identifier that the server will use to decide which
+resources and services an application is allowed to use. It can also be used
+to customize the service on a server level.
+<p>
+The client type is provided by Wayfinder upon request
+
+<h3>The application version</h3>
+The application version is exactly what it seems to be - the version of the
+application using the Core. This can be used to track statistics and usage.
+<p>
+It can also be used in a lesser regard to filter service access and/or filter
+data to prevent bugs in earlier versions
+
+<h3>Server hostnames and ports</h3>
+These are the hostnames and ports for the Wayfinder servers. They can be
+customized to use specific server clusters depending on regional location and/or
+service access.
+<p>
+These are also used to run against test and development clusters to try out
+new functionality and trace down problems.
+
+<h3>The CallbackHandler</h3>
+Since many methods in the Core are asynchronous, listeners are used to
+return responses via callbacks.
+<p>
+For the UI, there is much that can be gained if these callbacks are performed 
+in the event dispatcher thread. Populating a view will be faster and easier 
+to do since there is no need for the UI to reschedule such a task back onto 
+the dispatcher.
+<p>
+However, there are also situations where the event dispatcher is not 
+available or even bad to use due to demands on platforms or products. One 
+example is if the Core will be used on a BlackBerry background task where 
+there is no event dispatcher at all.
+<p>
+Because of this, the decision on how the callbacks will be made will be up to 
+the application that wishes to use the Core. The Core will in turn guarantee 
+that the provided method will be used for all callbacks to the UI. <b>Please
+observe that there are a few exceptions to this rule for some callbacks that
+can be very talkative. The listeners affected by these exceptions have this
+clearly stated in the attached javadoc.</b>
+<p>
+When the Core is created by an application, the application must provide a class
+which implements this interface.
+<p>
+Here is an implementation example for Java Standard Edition:
+<pre>
+private class J2SECallBack implements CallbackHandler {
+    
+    private final ExecutorService m_service = Executors.newSingleThreadExecutor();
+    
+    &#64;Override
+    public void callInvokeCallbackRunnable(Runnable r) {
+        m_service.execute(r);
+    }
+}
+</pre>
+
+<h3>The PAL for the platform</h3>
+The Platform Abstraction Layer (PAL) is a bridge between the Core and the
+currently running platform. This allows the same Core library to run on multiple
+platforms by only replacing the PAL.
+<p>
+The PAL implementations are provided in separate libraries.
+<hr>
+<a name="creating_the_core_example" />
+<h2>Creation of the Core</h2>
+When creating the Core, first make sure that the above data is available. Once
+all data is available, use the factory methods in the CoreFactory class
+to create and obtain the Core object. Once the Core has been created, it's ready 
+to be used. To use the Core, please see the documentation for the individual 
+interfaces available in the main Core class.
+<p>
+<b>Please note that some platforms may require extra settings in the PAL to work 
+as intended.</b>
+<p>
+Here is an implementation example of a method creating the Core:
+
+<pre>
+public Core createFullCore() {
+    String clientType = "[obtained from Wayfinder]";
+    String appVersion = "[version of your application]"
+    String[] serverHosts = new String[] { "[obtained from Wayfinder]" };
+    int[] serverPorts = new int[] { [obtained from Wayfinder] };
+    
+    ServerData bootData = new ServerData(
+            clientType,
+            appVersion, 
+            serverHosts,
+            serverPorts);
+    
+    // create the PAL for the relevant platform
+    // PAL is included in separate library for each platform
+    // In this example we create the PAL for Java Standard Edition
+    PAL pal = JsePAL.createStandardEditionPAL();
+    ModuleData modData = new ModuleData(pal, bootData, 
+                                        new J2SECallBack());
+    
+    return CoreFactory.createFullCore(modData);
+}
+</pre>
+
+<hr>
+<h2>Quick overview of the available APIs</h2>
+
+<table border="1">
+<tr>
+<td>SearchInterface</td>
+<td>Responsible for:
+<ul>
+<li>Search for places etc in multiple databases</li>
+<li>obtaining top regions</li>
+<li>Obtaining categories</li>
+</ul>
+</tr>
+
+<tr>
+<td>RouteInterface</td>
+<td>Contains functionality for:
+<ul>
+<li>Making routes between different places</li>
+<li>Navigating said routes</li>
+</ul>
+</tr>
+
+<tr>
+<td>LocationInterface</td>
+<td>Contains functonality for:
+<ul>
+<li>Obtaining positions using cell id</li>
+<li>Obtaining positions using GPS</li>
+<li>Listening for changes to location services</li>
+</ul>
+</tr>
+
+<tr>
+<td>FavoriteInterface</td>
+<td>Contains functonality for:
+<ul>
+<li>Saving found locations as favorites</li>
+<li>Synchronizing the favorites with the MyWayfinder site</li>
+</ul>
+</tr>
+
+<tr>
+<td>VectorMapInterface</td>
+<td>Contains functionality for using and controlling the vectorized map</td>
+</tr>
+
+
+<tr>
+<td>UserDataInterface</td>
+<td>Contains functionality related to the current user's account on the 
+Wayfinder server</td>
+</tr>
+
+<tr>
+<td>WFServerInterface</td>
+<td>Contains functionality very related to the Wayfinder server itself.
+<p>
+Currently:
+<ul>
+<li>Tunneling data through the server</li>
+<li>Obtaining resources on the server</li>
+<li>Client upgrade availability check</li>
+</ul>
+</tr>
+
+<tr>
+<td>SoundInterface</td>
+<td>Contains general methods that affect all available sound systems in the Core</td>
+</tr>
+
+<tr>
+<td>NavigationSoundInterface</td>
+<td>Contains methods for controlling the sounds played during navigation</td>
+</tr>
+
+<tr>
+<td>GeocodeInterface</td>
+<td>Contains methods for geocoding and reverse geocoding</td>
+</tr>
+
+<tr>
+<td>PoiInfoInterface</td>
+<td>Contains methods for obtaining detailed information of already found POIs</td>
+</tr>
+
+</table>
+
+</body>
+</html>

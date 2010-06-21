@@ -1,0 +1,127 @@
+<!--
+  Copyright (c) 1999-2010, Vodafone Group Services
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions 
+  are met:
+  
+      * Redistributions of source code must retain the above copyright 
+        notice, this list of conditions and the following disclaimer.
+      * Redistributions in binary form must reproduce the above 
+        copyright notice, this list of conditions and the following 
+        disclaimer in the documentation and/or other materials provided 
+        with the distribution.
+      * Neither the name of Vodafone Group Services nor the names of its 
+        contributors may be used to endorse or promote products derived 
+        from this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+  OF SUCH DAMAGE.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>com.wayfinder.core</title>
+</head>
+<body>
+Functionality for obtaining positions through different methods such as GPS,
+CellID and similar
+
+<h1>Positioning</h1>
+This API is fairly central to the Wayfinder Core API since it's responsible for
+grabbing positions for use by the rest of the APIs.
+
+
+<h2>Different types of positioning</h2>
+<h3>Cell ID</h3>
+This positioning type uses information from the wireless radio masts in the
+vicinity of the device to give a rather rough position. The information from the
+masts are sent to a server which in turn looks up the location of the mast in a
+database.
+<p>
+The accuracy of positions grabbed using Cell ID can be quite bad and
+range from a few hundred meters in cities up to a few kilometers in rural zones.
+
+<h3>GPS positions</h3>
+Global Position System (GPS) uses an array of 24 to 32 satellites circling the 
+earth to determine the location of a specific point in the world. This is done
+using a combination of time stamps and orbital information.
+<p>
+GPS positions usually have a very high accuracy, often down to a few meters.
+However in locations without clear view of the sky or in extreme weather these
+positions can become inaccurate.
+
+
+<h2>Using the positioning system.</h2>
+
+<h3>Registering listeners and receiving positions</h3>
+The first thing to do is to have a class implement the LocationListener
+interface. Once the interface has been registered as a listener, the method 
+locationUpdated(LocationInformation, LocationProvider) will then be called when 
+a new position is available.
+<p>
+There are two ways to register a listener for receiving positions, asynchronous
+and synchronous. Please note that the name refers to the method used by the
+<u>internal positioning thread</u> to update the listener.
+<p>
+Synchronous callbacks are recommended for background systems that don't need
+to update the UI directly. Asynchronous can be used with favor when the
+callback also needs to update the UI.
+<h4>Asynchronous callbacks</h4>
+To (de)register a listener, use the methods:
+<ul>
+<li>addLocationListener(Criteria, LocationListener)</li>
+<li>removeLocationListener(LocationListener)</li>
+</ul>
+Updates to the listener will be done using the previously registered
+CallbackHandler, eg through the thread previously assigned the job to service
+callbacks. <i>Note that positions are called every second and if the callback
+handler is otherwise heavily taxed can quickly flood the dispatcher system</i>
+
+<h4>Synchronous callbacks</h4>
+To (de)register a listener, use the methods:
+<ul>
+<li>addSyncLocationListener(Criteria, LocationListener)</li>
+<li>removeSyncLocationListener(LocationListener)</li>
+</ul>
+Updates to the listener will be done using the same thread that services the
+positions received from the PAL. Note that while this can be more efficient,
+heavy operations in the locationUpdated() method can cause the positions to
+lag.
+
+<h3>Provider state</h3>
+In addition to sending position updates, the API also offers a system to
+receive updates about the state of the provider. Please note that the provider
+and it's state will be supplied in the calls to LocationListener.locationUpdated()
+but if there is a need to only listen for the states, this API can be used.
+<p>
+To use it, have a class implement the ProviderStateListener interface and
+use the following methods:
+<ul>
+<li>addProviderStateListener(ProviderStateListener)</li>
+<li>removeProviderStateListener(ProviderStateListener)</li>
+</ul>
+
+<h3>Pausing and resuming the system</h3>
+The positioning system can be paused and resumed by using the following
+methods:
+<ul>
+<li>pause()</li>
+<li>resume()</li>
+</ul>
+Please note that due to inner threads, there are no guarantees on exactly when 
+the system will pause/resume. Please note that pausing the system will also
+cause the Core to disable the actual GPS handling through the PAL.
+</body>
+</html>

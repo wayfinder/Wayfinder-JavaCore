@@ -1,0 +1,227 @@
+<!--
+  Copyright (c) 1999-2010, Vodafone Group Services
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions 
+  are met:
+  
+      * Redistributions of source code must retain the above copyright 
+        notice, this list of conditions and the following disclaimer.
+      * Redistributions in binary form must reproduce the above 
+        copyright notice, this list of conditions and the following 
+        disclaimer in the documentation and/or other materials provided 
+        with the distribution.
+      * Neither the name of Vodafone Group Services nor the names of its 
+        contributors may be used to endorse or promote products derived 
+        from this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+  OF SUCH DAMAGE.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>com.wayfinder.core.search.merged</title>
+</head>
+<body>
+<p>This package contains functionality for doing a OneList search.</p>
+
+<h1>OneList Search</h1>
+
+<h2>Introducing the OneList search</h2>
+<p>The merged search is a method of search where multiple providers are searched
+at once and the result is then returned in one big list sorted according to the
+criteria specified in the query. Information about which provider provided the
+search result is hidden from view. For some providers, the server provides
+the name of a provider logo that the client must display together with the
+search results to honor our contracts with those providers. For more details,
+see {@link com.wayfinder.core.search.onelist.OneListSearchReply.SearchMatch#getMatchProviderImageName()}.
+</p>
+
+<h2>Starting a OneList search</h2>
+<p><ol>
+<li>Set up a working Core, see
+    <a href="../../package-summary.html#creating_the_core_example">Creating the Core</a>.</li>
+<li>Obtain the {@link com.wayfinder.core.search.SearchInterface} from
+    {@link com.wayfinder.core.Core#getSearchInterface()}.</li>
+<li>Specifying what to search for (the search query).
+    See <a href="../package-summary.html#search_query">the general description
+    of search query</a>.</li>
+<li>Obtain the {@link com.wayfinder.core.search.onelist.OneListSearch}
+    interface through {@link com.wayfinder.core.search.SearchInterface#getOneListSearch()}.</li>
+<li>Implement the interface {@link com.wayfinder.core.search.onelist.OneListSearchListener}
+    to receive results and errors.</li>
+<li>Call {@link com.wayfinder.core.search.onelist.OneListSearch#search(SearchQuery, OneListSearchListener)}
+    to start the search.</li> 
+</ol></p>
+
+<p>Several searches can be started at the same time with the same listener
+receiving the results. In this case you will need to check the
+{@link com.wayfinder.core.shared.RequestID} to separate the results of
+the different searches.</p>
+
+<h2>Receiving the results</h2>
+<p>Once the search() method has been called, the call-backs will be made to the
+listener:
+<ol>
+<li>{@link com.wayfinder.core.search.onelist.OneListSearchListener#searchUpdated(RequestID, OneListSearchReply)}
+    will be called every time the server sends an updated list of matches,
+    <i>except</i> if the server states that the search is completed.
+    The provided reply contains  <i>all matches received so far</i>.</li>
+<li>Once the search is completely done,
+    {@link com.wayfinder.core.search.onelist.OneListSearchListener#searchDone(RequestID, OneListSearchReply)}
+    will be called. Once this is called, no more methods will be called until
+    another search takes place.</li>
+</ol>
+
+<h2>Result details</h2>
+
+<p>
+You can choose to get some details on a result included with it in the search
+reply. Your (positional) SearchQuery needs to specify this. See
+{@link com.wayfinder.core.search.SearchQuery#createPositionalQuery(String, Category, Position, int, boolean)}.
+More on <a href="../package-summary.html#search_query">positional queries here</a>. 
+</p>
+<p>
+You can try to get what details are available by calling
+{@link com.wayfinder.core.search.onelist.OneListSearchReply.SearchMatch#getFilteredInfo()}.
+</p>
+<p>The results you receive for a search might not contain all the available data
+stored on the server. This is done for practical reasons, as in the case of
+a large number of results, the reply could take long time to parse completely.
+Therefore, only the essential is included at first.
+</p>
+<p>
+You can check if a search result has more available data than what was already
+provided by calling {@link com.wayfinder.core.search.onelist.OneListSearchReply.SearchMatch#additionalInfoExists()}.
+</p>
+<p>
+Obtaining that extra information is done through
+{@link com.wayfinder.core.search.onelist.OneListSearch#requestDetails(SearchMatch, MatchDetailsRequestListener)}.
+<br />
+Once the request is done, the supplied listener is notified:
+<ol>
+<li>
+In case of success, {@link com.wayfinder.core.search.onelist.MatchDetailsRequestListener#matchDetailsUpdated(RequestID reqID, SearchMatch match)}
+is called, with the <code>SearchMatch</code> being the same object as the one
+supplied in the request, but with the extra info added.
+</li>
+<li>
+In case of failure, {@link com.wayfinder.core.search.onelist.MatchDetailsRequestListener#error(RequestID reqID, CoreError error)}
+is called.
+</li>
+</ol> 
+</p>
+
+<h2>Example code</h2>
+<p>The following code does a merged search for all places in Lund, Sweden that
+contains the word "bar". Please observe that this is just example code and is 
+not optimized for production usage.</p>
+
+<p><pre>
+public class OneListSearchTest
+    implements OneListSearchListener{
+
+    private RequestID m_reqId;
+
+    //-------------------------------------------------------------------------
+    // This code involves specifiying the search query and initiating the
+    // search
+
+    public void test(Core c) {
+        SearchQuery req = SearchQuery.createPositionalQuery(
+                "bar", 
+                null, 
+                // Position of Lund, Sweden
+                new Position(664744320, 157372032),
+                SearchQuery.RADIUS_SERVER_DEFAULT);
+        SearchInterface searchIfc = c.getSearchInterface();
+        OneListSearch listSearch = searchIfc.getOneListSearch();
+        m_reqId = listSearch.search(req, this);
+    }
+
+
+    //-------------------------------------------------------------------------
+    // The following code involves report-back during the search
+
+    /* (non-Javadoc)
+     * @see com.wayfinder.core.search.onelist.OneListSearchListener#searchDone(com.wayfinder.core.shared.RequestID, com.wayfinder.core.search.onelist.OneListSearchReply)
+     */
+    public void searchDone(RequestID reqID, OneListSearchReply reply) {
+        System.out.println("OneListSearchTest.searchDone()\n");
+        printReply(reply);
+        super.testDone();
+    }
+
+    /* (non-Javadoc)
+     * @see com.wayfinder.core.search.onelist.OneListSearchListener#searchUpdated(com.wayfinder.core.shared.RequestID, com.wayfinder.core.search.onelist.OneListSearchReply)
+     */
+    public void searchUpdated(RequestID reqID, OneListSearchReply reply) {
+        System.out.println("OneListSearchTest.searchUpdated()\n");
+        printReply(reply);
+    }
+
+    /* (non-Javadoc)
+     * @see com.wayfinder.core.search.SearchListener#searchHistoryUpdated(com.wayfinder.core.search.SearchHistory)
+     */
+    public void searchHistoryUpdated(SearchHistory history) {
+        // Not relevant to this example.
+    }
+
+
+    //-------------------------------------------------------------------------
+    // in case of error
+
+    /* (non-Javadoc)
+     * @see com.wayfinder.core.shared.ResponseListener#error(com.wayfinder.core.shared.RequestID, com.wayfinder.core.shared.error.CoreError)
+     */
+    public void error(RequestID requestID, CoreError error) {
+        System.out.println("OneListSearchTest.error()" + error.getInternalMsg());
+        super.testDone();
+    }
+    
+
+    //-------------------------------------------------------------------------
+    // utility methods not included in the Core
+
+    private static void printReply(OneListSearchReply reply) {
+        final Position originalPosition = reply.getOriginalSearchQuery().getPosition();
+        MatchList list = reply.getMatchList();
+        System.out.println("Estimated total: "+list.getEstimatedTotalNbrOfMatches());
+        printMatchList(list, originalPosition);
+    }
+    
+    private static void printMatchList(MatchList list, Position originalPosition) {
+        System.out.println("Currently in list: "+list.getNbrOfMatches()+" matches");
+        for (int j = 0; j < list.getNbrOfMatches(); j++) {
+            SearchMatch match = list.getMatch(j);
+            printSingleMatch(match, originalPosition);
+        }
+    }
+
+    private static void printSingleMatch(SearchMatch match, Position originalPosition) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("\nMatch name: ");sb.append(match.getMatchName());
+        sb.append("\nMatch location: ");sb.append(match.getMatchLocation());
+        int distance = match.getPosition().distanceTo(originalPosition);
+        sb.append("\nMatch distance: ");sb.append(Integer.toString(distance));
+        sb.append("\nMatch category image: ");sb.append(match.getMatchCategoryImageName());
+        sb.append("\nMatch brand image: ");sb.append(match.getMatchBrandImageName());
+        sb.append("\nMatch provider image: ");sb.append(match.getMatchProviderImageName());
+        System.out.println(sb.toString());
+    }
+}
+</pre></p>
+</body>
+</html>

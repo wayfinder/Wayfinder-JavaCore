@@ -1,0 +1,10 @@
+#Tue May 26 10:19:22 CEST 2009
+cleanup_settings_version=2
+eclipse.preferences.version=1
+formatter_profile=_WF Eclipse
+formatter_settings_version=11
+org.eclipse.jdt.ui.exception.name=e
+org.eclipse.jdt.ui.gettersetter.use.is=true
+org.eclipse.jdt.ui.keywordthis=false
+org.eclipse.jdt.ui.overrideannotation=false
+org.eclipse.jdt.ui.text.custom_code_templates=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?><templates/>

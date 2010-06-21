@@ -1,0 +1,633 @@
+<!--
+  Copyright (c) 1999-2010, Vodafone Group Services
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions 
+  are met:
+  
+      * Redistributions of source code must retain the above copyright 
+        notice, this list of conditions and the following disclaimer.
+      * Redistributions in binary form must reproduce the above 
+        copyright notice, this list of conditions and the following 
+        disclaimer in the documentation and/or other materials provided 
+        with the distribution.
+      * Neither the name of Vodafone Group Services nor the names of its 
+        contributors may be used to endorse or promote products derived 
+        from this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+  OF SUCH DAMAGE.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>com.wayfinder.core.search</title>
+</head>
+
+<body>
+<p>This package contains functionality for retrieving top regions, 
+categories and conducting searches through the Java Core.</p>
+
+<h1>The Wayfinder Search</h1>
+
+<h2>Table of contents</h2>
+<p>
+<ol><li><a href="#categories">Categories</a>
+    <ol><li><a href="#category_tree">Category Tree System</a></li>
+        <li><a href="#category_list">Category List (Category Collection - legacy)</a></li>
+    </ol></li>
+    <li><a href="#top_regions">Top Regions</a></li>
+    <li><a href="#search_provider">Search Provider</a></li>
+    <li><a href="#searching">Searching</a></li>
+    <li><a href="#the_different_types_of_searching">The different types of searching</a></li>
+</ol></p>
+
+<a name="categories"><h2>Categories</h2></a>
+A category is a collection of items that share a common concept.
+<p>
+For this functionality, a category is a classification of a location based on 
+the most common action taking place there. One example is a 
+&quot;restaurant&quot;, where people usually eat.
+</p>
+<p>
+Please note that a location can very well fall into several categories. As an 
+example, a hotel can fall into both the hotel category (for obvious reasons) 
+while at the same time being part of the restaurant category (since most hotels 
+have a restaurant to feed their guests).</p>
+<p>The categories are defined by the MC2 server and you can not define your
+own categories. There are two systems for keeping track of which categories
+exist and how they fit together:<ol>
+    <li>The <a href="#category_tree">Category Tree system</a></li>
+    <li>The legacy <a href="#category_list">Category List (Category Collection)</a></li>
+</ol></p>
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  -->
+
+<a name="category_tree"><h3>Category Tree System</h3></a>
+<p>The server generated category tree is a pre-decided directed acyclic graph
+of categories that
+represent the most popular items on the server. This tree can change over time
+and will continuously be updated with the currently most popular items
+available. The contents of the list might change depending on the user's user
+rights and position. Examples:
+</p>
+<ul><li>Some categories are premium content and only available when subscribed
+    to.</li>
+    <li>In some countries, some categories (e.g. banks in Sweden) have very
+    limited number of POI:s and only clutters the list.</li>
+    <li>Usage patterns suggest that the search habits of the users differs
+    between countries and thus each market should have the most commonly
+    sought categories at the top.</li>
+</ul>
+
+<p>Discovery of, and subscription to, new categories of POI:s are outside of
+this documentation's scope.</p>
+
+<ul><li>You request an update of the category tree at startup or when position has changed significantly through
+{@link com.wayfinder.core.search.SearchInterface#updateCategoryTree(Position, CategoryTreeUpdateRequestListener)}.</li>
+    <li>You can register listeners that get notified when category tree is changed (loaded or updated) by calling 
+{@link com.wayfinder.core.search.SearchInterface#addCategoryTreeChangeListener(CategoryTreeChangeListener)}.</li> 
+    <li>You get the current category tree through {@link com.wayfinder.core.search.SearchInterface#getCurrentCategoryTree()}</li>    
+   <li>Then, you can walk through the tree by using
+{@link com.wayfinder.core.search.CategoryTree} and the associated iterator class {@link com.wayfinder.core.search.CategoryTreeIterator}.</li>
+  <li>You use the {@link com.wayfinder.core.search.HierarchicalCategory} objects returned by the iterator
+to do <a href="#search_query">category searches</a>.</li>
+</ul>
+
+<p>Here is example code that retrieves the tree, walks through it and sends
+off a search.
+</p>
+<ul><li>For information on how to set up a working Core and get hold
+of the <code>SearchInterface</code>, please see
+<a href="../package-summary.html#creating_the_core_example">Creating the Core</a>.</li> 
+<li>You will have to implement <code>waitForDone()</code> and <code>done()</code>
+suitably to avoid your application dying before the result is available
+(all threads internally to Java Core are daemon threads).</li>
+</ul>
+<pre>
+public final class CategoryTreeTest
+    implements CategoryTreeChangeListener, OneListSearchListener {
+
+    private SearchInterface m_searchIfc;
+    // ... set up core and get the SearchInterface 
+
+    private void checkCurrentTreeAndRequestUpdate(Position currentPosition,
+                                                 SearchInterface searchIfc) {
+    
+        CategoryTree tree = searchIfc.getCurrentCategoryTree();
+        // store for use in your UI
+        System.out.println("The tree currently cached in Core is " + tree);
+
+        // register as a listener for updated trees
+        searchIfc.addCategoryTreeChangeListener(this);
+        
+        // create a receiver to get notified if the update request (oneshot)
+        // fails
+        CategoryTreeUpdateRequestListener updateRequestStatusListener =
+            new CategoryTreeUpdateRequestListener() {
+
+            public void error(RequestID requestID, CoreError error) {
+                System.err.println(requestID + " Error: " + error);
+                done();
+            }
+            
+            public void categoryTreeUpdateDone(RequestID requestID,
+                                               boolean hasChanged) {
+                if (hasChanged) {
+                    System.out.println(requestID + " Success - a new tree was sent to listeners.");
+                } else {
+                    System.out.println(requestID + " Success - but no new tree was available");
+                }
+                                 
+                done();
+            }
+        };
+
+        // Request Core to check with the server for an updated tree
+        searchIfc.updateCategoryTree(currentPosition,
+                                     updateRequestStatusListener);
+
+        // your UI waits for result or user interaction ...
+        waitForDone();
+    }
+    
+    public void categoryTreeChanged(CategoryTree categoryTree) {
+        try {
+            // dump the category tree to stdout
+            CategoryTreeIterator cti = categoryTree.getRootLevelCategories();
+            printCategoryTree(categoryTree, cti, 1);
+
+            // -----------------------------------------------------------
+            // UI usage pattern example
+            // list the first level category list as seen by user            
+            cti = categoryTree.getRootLevelCategories();
+            HierarchicalCategory[] uiList = new HierarchicalCategory[cti.nbrCategoriesLeft()]; 
+
+            HierarchicalCategory cat = null;
+            for (int i=0; cti.hasNext(); i++) {
+                cat = cti.next();
+                uiList[i] = cat;
+            }
+
+            // user clicks list item i
+            int i = 2; // Cafe in UK dummy data
+
+            cat = uiList[i];
+            if (cat.nbrSubCategories() > 0) {
+                // display a new list
+                cti = categoryTree.getSubCategoriesOf(cat);
+                // populate the same way as before ...
+            } else {
+                // leaf node - do search
+
+                SearchQuery query = SearchQuery
+                .createPositionalQuery(null,
+                        cat,
+                        m_pos,
+                        20000);
+                OneListSearch searchMethod = m_searchIfc.getOneListSearch(); 
+                searchMethod.search(query, this); 
+            }
+
+         // -----------------------------------------------------------
+         // error handling (these errors rarely occur)
+
+        } catch (CategoryTreeException e) {
+            System.err.println("categoryTreeUpdated(): error: " + e.getMessage());
+            if (e.getCause() != null) {
+                e.getCause().printStackTrace();
+            }
+        }
+    }
+
+
+    private void printCategoryTree(CategoryTree tree,
+                                   CategoryTreeIterator cti,
+                                   int level)
+        throws CategoryTreeException {
+        
+        StringBuffer sb = new StringBuffer();
+        for(int i=0; i < level; i++) {
+            sb.append('\t');
+        }
+        final String indenting = sb.toString();
+        
+        while (cti.hasNext()) {
+            HierarchicalCategory cat = cti.next();
+            int id = cat.getCategoryID();
+            System.out.print(indenting);
+            System.out.format("%d:\"%s\" %d sub categories. image: %s\n",
+                              id,
+                              cat.getCategoryName(),
+                              cat.nbrSubCategories(),
+                              cat.getCategoryImageName());
+            if (cat.nbrSubCategories() > 0) {
+                printCategoryTree(tree, tree.getSubCategoriesOf(cat), level + 1);
+            }
+        }
+    }
+
+
+    // -------------------------------------------------------------------------
+    // ResponseListener ifc
+    
+    /* (non-Javadoc)
+     * @see com.wayfinder.core.shared.ResponseListener#error(com.wayfinder.core.shared.RequestID, com.wayfinder.core.shared.error.CoreError)
+     */
+    public void error(RequestID requestID, CoreError error) {
+        System.err.println("error(): " + requestID + ": " + error.getInternalMsg());
+        
+        done(); // terminate the program
+    }
+
+    
+    // -------------------------------------------------------------------------
+    // call back ifc for merged search. Not implemented in this test
+    // program.
+    
+    /* (non-Javadoc)
+     * @see com.wayfinder.core.search.merged.MergedSearchListener#searchDone(com.wayfinder.core.shared.RequestID, com.wayfinder.core.search.merged.MergedSearchReply)
+     */
+    public void searchDone(RequestID requestID, MergedSearchReply reply) {
+        System.out.println("CategoryTreeTest.searchDone() reqID: " + requestID);
+        printReply(reply);
+        
+        done(); // terminate the program
+        
+    }
+
+    private static void printReply(OneListSearchReply reply) {
+        // please see com.wayfinder.core.search.onelist package doc
+    }
+    
+    private static void printSingleMatch(SearchMatch match, Position originalPosition) {
+        // please see com.wayfinder.core.search.onelist package doc
+    }
+
+    /* (non-Javadoc)
+     * @see com.wayfinder.core.search.merged.OneListSearchListener#searchUpdated(com.wayfinder.core.shared.RequestID, com.wayfinder.core.search.merged.OneListSearchReply)
+     */
+    public void searchUpdated(RequestID reqID, OneListSearchReply reply) {
+        // not relevant to this example
+    }
+
+    /* (non-Javadoc)
+     * @see com.wayfinder.core.search.SearchListener#searchHistoryUpdated(com.wayfinder.core.search.SearchHistory)
+     */
+    public void searchHistoryUpdated(SearchHistory history) {
+        // not relevant to this example
+    }
+</pre>
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  -->  
+
+<a name="category_list" ><h3>Category List (Category Collection - legacy)</h3></a>
+<p>This document describes the legacy system for retrieving the list of
+categories that the server knows about. New systems should use the
+<a href="#category_tree">Category Tree system</a> instead.</p>
+
+<p>The server generated category list is a pre-decided list of categories that
+represent the most popular items on the server. This list can change over time
+and will continuously be updated with the currently most popular items
+available. The contents of the list might change depending on the user's user
+rights. E.g. if certain categories are of POIs are only available when
+subscribed to.</p>
+
+<p>Discovery of, and subscription to, new categories of POI:s are outside of
+this documentation's scope.</p>
+
+<h4>Retrieving the list of Categories</h4>
+<p>Retrieving the list of categories is easy.</p>
+
+<p>First, have a class implement the {@link com.wayfinder.core.search.CategoryListener} interface. Usually this will
+be the UI class that will present the list of categories to the user.</p>
+
+<p>Once this is done, call one of the following methods in SearchInterface:</p>
+<table border="1">
+<tr>
+<td>{@link com.wayfinder.core.search.SearchInterface#loadCategories(CategoryListener)}</td>
+<td>Loads the <i>generic</i> list of available categories</td>
+</tr>
+<tr>
+<td>{@link com.wayfinder.core.search.SearchInterface#loadCategories(Position, CategoryListener)}</td>
+<td>Loads a list of available categories that is customized for the location
+specified by the provided Position. Note that this list usually only contains
+Categories where there are ample hits available.</td>
+</tr>
+</table>
+
+<p>Observe that the CategoryListener may be called several times depending on
+the available data. If the data already has been downloaded once, the listener
+will be called with the cached data until the server has been contacted to check
+if the data is recent. If a new list is available on the server, the listener
+will later be called again with the updated list.</p>
+
+<hr>
+
+<!-- ==================================================================== -->
+
+<a name="top_regions"><h2>Top Regions</h2></a>
+<h3>The TopRegion concept explained</h3>
+<p>
+As most people know, the world is divided into countries. :)
+This is very similar to how the top regions work in Wayfinder.
+</p>
+<p>
+A top region represents a larger part of the world and is actually in most cases
+directly translated into countries. However for some of the larger countries in
+the world (such as the United States or India), the countries has been split
+into multiple top regions. These are usually still connected to already 
+established parts (such as the different states in the case of the United States)
+</p>
+<h3>Retrieving the list of TopRegions</h3>
+To obtain the current list of top regions, simply take the following steps:
+<ol>
+<li>Implement the interface {@link com.wayfinder.core.search.TopRegionListener}.</li>
+<li>Obtain the SearchInterface from the Core</li>
+<li>Call the method {@link com.wayfinder.core.search.SearchInterface#loadTopRegions(TopRegionListener)}</li>
+<li>{@link com.wayfinder.core.search.TopRegionListener#topregionsUpdated(RequestID, TopRegionCollection)} will be called
+once the list is ready</li>
+</ol>
+<p>
+Observe that the TopRegionListener.topregionsUpdated may be called several times 
+depending on the available data. If the data already has been downloaded once, 
+the listener will be called with the cached data until the server has been 
+contacted to check if the data is recent. If a new list is available on the 
+server, the listener will later be called again with the updated list.
+</p>
+<h3>Determining top region for a position</h3>
+This is usually used to determine what top region the user is currently in,
+but can be used to determine any top region for any position. To use it:
+<ol>
+<li>Implement the TopRegionListener interface</li>
+<li>Obtain the SearchInterface from the Core</li>
+<li>Call the method SearchInterface.determineTopRegionForPosition(Position,TopRegionListener)</li>
+<li>TopRegionListener.currentTopRegion(Position, TopRegion) will be called
+once the top region has been determined</li>
+</ol>
+<hr>
+
+<!-- ==================================================================== -->
+
+<a name="search_provider" /><h2>Search Provider</h2></a>
+<h3>The Search Provider concept explained</h3>
+<p>
+A provider can be seen as a database of places, often assembled and maintained 
+by a company.
+</p>
+<p>
+There are two types of databases, internal and external. Internal databases are 
+hosted by Wayfinder and can be significally faster to search in. External 
+databases are hosted by other companies that usually specialize in specific 
+types of data such as phone number listings or wifi hotspots.
+</p>
+<p>
+Also, the external databases are often for one or a few top regions only. As 
+such different databases are often used for different top regions. 
+</p>
+<h3>Searching in different providers</h3>
+<p>
+The Core will automatically search in all provider databases appropriate for
+the specified search.
+</p>
+<p>
+This means that depending on where in the world the search takes place,
+different databases will be used since some databases contains information that
+is only relevant for a specific country. One example of this is the Eniro
+yellow pages for Sweden, which wouldn't make much sense to search in when the
+search takes place in Mexico.
+</p>
+<p>
+Due to speed differences in the databases, the results from the search will be
+return in batches where the fast databases will return first and the slower
+databases will follow.
+</p>
+<hr>
+
+<!-- ==================================================================== -->
+
+<a name="searching"><h2>Searching</h2></a>
+Using the search API involves 5 things.
+
+<ol>
+<li>Set up a working Core, see
+<a href="../package-summary.html#creating_the_core_example">Creating the Core</a>.</li>
+<li>Obtain the {@link com.wayfinder.core.search.SearchInterface} from
+{@link com.wayfinder.core.Core#getSearchInterface()}.</li>
+<li>Specifying what to search for (the search query).
+See <a href="#search_query">search query</a>.</li>
+<li>Deciding what kind of search to use and obtain
+an implementation you can post search queries to.
+See <a href="#the_different_types_of_searching">the different types of searching</a>.</li>
+<li>Implement the required sub interface of
+{@link com.wayfinder.core.search.SearchListener} to receive search results.</li>
+<li>Call <code>search(...)</code> on the search method implementation
+obtained in 2.</li>  
+</ol>
+
+
+<a name="search_query"><h3>The search query</h3></a>
+<p>A search query specifies the criteria you wish to search for.</p> 
+
+<p><i>For more detailed information, please see the class
+{@link com.wayfinder.core.search.SearchQuery}
+and it's static factory methods.</i></p>
+
+<p>For each query, the following are common:</p>
+<table border="1">
+<tr>
+<td>Item query string</td>
+<td>This is a freetext query string that has something to do with what you want
+to search for. Examples of things you can enter here are:
+        <ul>
+        <li>Full names ("McDonalds", "Starbucks" etc)</li>
+        <li>Partial names ("McD", "Starb" etc)</li>
+        <li>Street names, with or without street numbers</li>
+        <li>Postal numbers*</li>
+        <li>Names of people*</li>
+        </ul>
+        * = may not work in all places due to availability of data
+</td>        
+</tr>
+<tr>
+<td>Category</td><td>An optional <a href="#categories">category</a> to
+narrow down the returned matches so only those that match the category.</td>
+</tr>
+</table>
+<p>There are basically three types of queries you can make:</p>
+<h4>Top region query</h4>
+<p>
+This will narrow down the list of matches to only those within the
+specified top region. For this search, the following extra info must be
+provided:
+</p>
+<table border="1">
+<tr>
+<td>top region</td>
+<td>The top region to search in</td>
+</tr>
+<tr>
+<td>search area string</td>
+<td>An optional "where" string that works like the item query string, but is 
+    related to narrowing down the area. Examples of input here are city names 
+    ("London", "Berlin" etc) </td>
+</tr>
+</table>
+<p>
+When doing a top region query, the returned list of matches will be sorted
+according to relevance of the provided item query string.
+
+Here is an example of how to create a query for all places in Lund, Sweden 
+that have a name containing the word "mcdonalds".
+</p>
+<pre>
+    public void searchForMcDonaldsInLundSweden() {
+        TopRegion sweden = getTopRegionForSweden();
+        SearchQuery query = SearchQuery.createRegionalQuery(
+                "mcdonalds",
+                null,
+                "Lund",
+                sweden);
+
+        // then use the query object to initiate the search
+    }
+</pre>
+
+<h4>Position query</h4>
+<p>
+This will conduct a search around the provided position. For this type of
+search, the following extra information must be provided:
+</p>
+<table border="1">
+<tr>
+<td>Position</td>
+<td>The position to search around</td>
+</tr>
+<tr>
+<td>radius</td>
+<td>An optional radius that determines how far away from the position items may 
+    be to be returned in the reply</td>
+</tr>
+<tr>
+<td>include details</td>
+<td>
+A boolean parameter to specify if you want the reply to contain some detail
+fields for each search match. This data is available otherwise with a details
+request or POI info request. Useful with 
+<a href="onelist/package-summary.html">com.wayfinder.core.search.onelist</a>
+</td>
+</tr>
+</table>
+<p>
+When doing a position query, the returned list of matches will be sorted
+according to the distance from the provided position.
+
+Here is an example of how to create a query for all places in Lund, Sweden 
+that have a name containing the word "bar".
+</p>
+<pre>
+    public void searchForBarInLund() {
+        SearchQuery query = SearchQuery.createPositionalQuery(
+                "bar", // the item query string
+                null, // no specific category
+                new Position(664744320, 157372032), // lund
+                SearchQuery.RADIUS_SERVER_DEFAULT,  // let the server decide the radius
+                true); //include poi details in search reply
+                
+        // then use the query object to initiate the search
+    }
+</pre>
+
+
+<h4>Search area query</h4>
+<p>
+For searches in some locations in the world, the returned search reply
+may contain search area objects. These areas can be used to narrow down the
+search to a smaller location.
+</p>
+<h4>Address Geocoding Query</h4>
+<p>
+Use this type of search to obtain the coordinates for a given address. It's 
+quite similar to a regional search, but the category is irrelevant in this case.
+<br />
+<b>Only available through OneList search.</b>
+</p>
+<table border="1">
+<tr>
+<td>street and number string</td>
+<td>This is basically the same as the "what" (item query) string in the other 
+searches. Must be supplied.</td>
+</tr>
+<tr>
+<td>City or zip code string</td>
+<td>An optional "where" string, it's useful to supply this to narrow down the
+search results (to one, most likely). Not supplying this will probably
+get you a longer list of results, for instance all the cities that have a 
+certain street name (and number) in the given country or state. The maximum
+number of results can be limited (see below).</td>
+</tr>
+<tr>
+<td>top region</td>
+<td>The top region to search in. Must be supplied.</td>
+</tr>
+<tr>
+<td>max number of matches</td>
+<td>The maximum number of results the server can send back.</td>
+</tr>
+</table>
+<p>
+Here's an example on how to create a query to get the coordinates for 
+Nobelvagen 15 in Malmo, Sweden.
+</p>
+<pre>
+    public void searchForAddress() {
+        TopRegion sweden = getTopRegionForSweden();
+        SearchQuery query = SearchQuery.createAddressGeocodingQuery(
+                "Nobelvagen 15", // the street and number string
+                "Malmo", // the city string
+                sweden, // top region
+                5); // max nbr of matches
+                
+        // then use the query object to initiate the search
+    }
+</pre>
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  -->
+
+<a name="the_different_types_of_searching" ><h3>The different types of searching</h3></a>
+<p>Currently the SearchInterface supports two types of searches:</p>
+<style type="text/css">
+table.searchtypes {
+    text-align: left;
+}
+
+td.searchtypes {
+    padding: 0em 0.5em;
+}
+</style>
+<table class="searchtypes">
+<tr>
+    <th>Type</th><th>Obtain implementation with</th><th>package documentation</th>
+</tr><tr>
+    <td class="searchtypes"><b>Provider search</b></td>
+    <td class="searchtypes">{@link com.wayfinder.core.search.SearchInterface#getProviderSearch()}</td>
+    <td class="searchtypes"><a href="provider/package-summary.html">com.wayfinder.core.search.provider</a></td>
+</tr><tr>
+    <td class="searchtypes"><b>OneList search</b></td>
+    <td class="searchtypes">{@link com.wayfinder.core.search.SearchInterface#getOneListSearch()}</td>
+    <td class="searchtypes"><a href="onelist/package-summary.html">com.wayfinder.core.search.onelist</a></td>
+</tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,207 @@
+<!--
+  Copyright (c) 1999-2010, Vodafone Group Services
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions 
+  are met:
+  
+      * Redistributions of source code must retain the above copyright 
+        notice, this list of conditions and the following disclaimer.
+      * Redistributions in binary form must reproduce the above 
+        copyright notice, this list of conditions and the following 
+        disclaimer in the documentation and/or other materials provided 
+        with the distribution.
+      * Neither the name of Vodafone Group Services nor the names of its 
+        contributors may be used to endorse or promote products derived 
+        from this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+  OF SUCH DAMAGE.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>com.wayfinder.core.favorite</title>
+</head>
+<body>
+This package contains functionality for saving favorites and synchronize them 
+with the WF server through the Java Core. 
+
+<h1>The Wayfinder Favorites</h1>
+
+A favorite represent a place found during application usage that the user wants
+to remember. 
+<br/>
+Because favorites are stored in the server and are user dependent, those can be 
+recover after reinstallation of the application, and can be accessed from 
+different clients (web, application)   
+<br/>   
+The {@link com.wayfinder.core.favorite.FavoriteInterface} is the central access point and is obtained directly from 
+Core. 
+
+<h2>Favorite Initialization</h2>
+In order to avoid necessity of server synchronization and to provide fast 
+restoring at application start all favorites are keep in local persistence,
+those will be loaded automatically on first access 
+(first call of any method from FavoriteInterface).
+<br/> 
+Use asynchronous preload method to control the loading time of favorites.
+
+<h4>Example of preloading</h4>
+<pre>
+    ...
+    ModuleData moduleData = new ModuleData(pal, serverData, new J2SECallBack());
+    Core core = CoreFactory.createFullCore(moduleData);
+    FavoriteInterface favIfc = core.getFavoriteInterface();
+    favIfac.preload(new FavoriteLoadListener() {
+        
+    public void error(RequestID requestID, CoreError error) {
+        //an error has occurred the favorite could not be restored locally
+        //this could be a permission problem or corrupted data
+        //we can force a server synchronization to recover the data form server
+        //but the local changes (not sent to the server yet) if any would be 
+        //lost so user should be notify.    
+    }
+        
+    public void loaded(RequestID id, int numberOfFavorites) {
+        //loaded with success now we can display a fully initialized list of 
+        //favorites         
+    }
+</pre>   
+
+
+<h2>Favorites Access and Sorting</h2>
+Reading is done through a {@link com.wayfinder.core.favorite.ListModel} that will be automatically
+updated when the favorite are added or removed because of user manual operation,
+automatic restoring from persistence or synchronization with the server.
+The favorite list will be automatically sorted alphabetically by name.
+<br/>
+Is desired that ListModel is used directly by the List GUI component by letting 
+the GUI component to request the data instead of pushing that manually.   
+Note that the core ListModel is not related with favorites and could be use in the 
+future for other list that are changing. 
+
+<h4>Example using swing framework</h4>
+<pre>
+
+public void initUI(Core core){
+    //.... other ui code 
+    FavoriteInterface favIfc = core.getFavoriteInterface();
+    ListModel favListModel = favIfc.getFavoriteListModel(); 
+    JList favList = new JList(new DelegateListModel(listModel));
+    //.... other ui code 
+}
+
+/**
+ * javax.swing.ListModel that delegate all method call to a 
+ * core ListModel.     
+ **/ 
+class DelegateListModel extends javax.swing.AbstractListModel 
+        implements ListDataListener {
+    
+    ListModel favoriteListModel;
+    
+    public DelegateListModel(ListModel favoriteListModel) {
+        this.favoriteListModel = favoriteListModel;
+    }
+
+    //@Override
+    public Object getElementAt(int index) {
+        //we only want to display the name of the favorite
+        return ((Favorite)favoriteListModel.getElementAt(index)).getName();
+    }
+
+    //@Override
+    public int getSize() {
+        return favoriteListModel.getSize();
+    }
+
+    //@Override
+    public void contentsChanged(int start, int end) {
+        this.fireContentsChanged(favoriteListModel, start, end);
+    }
+
+    //@Override
+    public void intervalAdded(int start, int end) {
+        this.fireIntervalAdded(favoriteListModel, start, end);
+    }
+
+    //@Override
+    public void intervalRemoved(int start, int end) {
+        this.fireIntervalRemoved(favoriteListModel, start, end);
+    }
+
+    //@Override
+    public void addListDataListener(javax.swing.event.ListDataListener l) {
+        super.addListDataListener(l);
+        favoriteListModel.addListDataListener(this);
+    }
+
+    //@Override
+    public void removeListDataListener(javax.swing.event.ListDataListener l) {
+        super.removeListDataListener(l);
+        if (listenerList.getListenerCount() == 0) {
+            favoriteListModel.removeListDataListener(this);
+        }
+    }
+}
+</pre>
+   
+<h2>Favorites user operation Add/Remove/Replace</h2>
+A new favorite can be created only through FavoriteInterface add method.
+A favorite cannot be changed, use the replace method instead. 
+<br/>
+All user operation (add/remove/replace) are synchronous in the sense that 
+changes are visible immediately in the associated ListModel. 
+The persistence operations are done silently in the background.    
+<p>
+A global listener of type can be registered to be notified about errors
+during writing of favorite list changes (add/remove/replace). 
+The only possible action will be to do a synchronization in order to loose the 
+changes when restarting.  
+</p>   
+
+<h2>Favorites Server Synchronization</h2>
+Favorites can be synchronize with the server, and is advisable to do it from 
+time to time (e.g. at each application startup). 
+Note that the API will not do any unrequested/automatic synchronization. 
+<br/>
+Server synchronization is a asynchronous operation, the success or
+failure is notified through {@link com.wayfinder.core.favorite.FavoriteSynchListener}
+<p>
+There are two concerns regarding server synchronization:
+<ul>
+<li>
+After synchronization all new added favorites that were sent to the server 
+will be replaced with favorites received from server. Those favorites are 
+identical as content but are different instances and old Favorite instance 
+cannot be used anymore in user operation (remove/replace).
+</li>
+<li>
+If there is an error after the server has process the synch request but 
+before the client receive the full response, the new added favorite will be 
+doubled at next synchronization request.
+</li>
+</ul> 
+User operation are allowed during server synchronization but the
+removing or replace for some Favorites can be denied see above why.
+</p>
+<h2>Threading safety considerations</h2>
+The FavoriteInterface should be called only from UI/Main Thread. 
+Failure to do so can lead to unexpected random behavior.
+<br/>
+All listeners calls will be done through UI/Main Thread via CallbackHandler.
+
+</body>
+</html>

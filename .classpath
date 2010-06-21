@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="core/src"/>
+	<classpathentry kind="src" path="core/test"/>
+	<classpathentry kind="src" path="favorite/src"/>
+	<classpathentry kind="src" path="favorite/test"/>
+	<classpathentry kind="src" path="geocoding/src"/>
+	<classpathentry kind="src" path="map/src"/>
+	<classpathentry excluding="com/wayfinder/core/map/vectormap/internal/cache/FileCacheTest.java" kind="src" path="map/test"/>
+	<classpathentry kind="src" path="network/src"/>
+	<classpathentry kind="src" path="network/test"/>
+	<classpathentry kind="src" path="pal/src"/>
+	<classpathentry kind="src" path="pal/test"/>
+	<classpathentry kind="src" path="poiinfo/src"/>
+	<classpathentry kind="src" path="positioning/src"/>
+	<classpathentry kind="src" path="positioning/test"/>
+	<classpathentry kind="src" path="route/src"/>
+	<classpathentry kind="src" path="route/test"/>
+	<classpathentry kind="src" path="search/src"/>
+	<classpathentry kind="src" path="search/test"/>
+	<classpathentry kind="src" path="server/src"/>
+	<classpathentry kind="src" path="server/test"/>
+	<classpathentry kind="src" path="sound/src"/>
+	<classpathentry kind="src" path="shared/src"/>
+	<classpathentry kind="src" path="shared/test"/>
+	<classpathentry kind="src" path="user/src"/>
+	<classpathentry kind="src" path="user/test"/>
+	<classpathentry kind="src" path="junit/test"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/3"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

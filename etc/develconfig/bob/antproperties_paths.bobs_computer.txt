@@ -1,0 +1,65 @@
+#-------------------------------------------------------------------------------
+# Copyright (c) 1999-2010, Vodafone Group Services
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without 
+# modification, are permitted provided that the following conditions 
+# are met:
+# 
+#     * Redistributions of source code must retain the above copyright 
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above 
+#       copyright notice, this list of conditions and the following 
+#       disclaimer in the documentation and/or other materials provided 
+#       with the distribution.
+#     * Neither the name of Vodafone Group Services nor the names of its 
+#       contributors may be used to endorse or promote products derived 
+#       from this software without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
+# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+# OF SUCH DAMAGE.
+#-------------------------------------------------------------------------------
+# contains all paths for the user "bob" on the machine "bobs_computer"
+
+# Note that if the user has several computers he will also need one config
+# file for each computer. Place them all in the same folder (eg your username).
+# The username is the name reported to ant in the ${user.name} variable.
+
+# Applications
+
+# Path to the installation folder of Proguard. Please note that the core
+# libraries have only been tested with Proguard 4.3. A known issue exists
+# with Proguard 4.4 which causes the libraries to become corrupt. No further
+# investigation has been done into why it happens.
+path.tools.proguard=/usr/devel/proguard4.3
+
+# The path to the installation folder of JUnit. Please note that the JUnit tests
+# only been tested with JUnit 4.6. They should most likely work with newer
+# versions as well.
+path.tools.junit=/usr/devel/junit4.6
+
+# The path to the Findbugs installation. Currently the Findbugs checkers will
+# only be run if the "teamcity" target in the build.xml file is invoked.
+path.tools.findbugs=/usr/devel/findbugs-1.3.9
+
+# work paths
+
+# Path to a temporary directory. Any place you like.
+# WARNING! This folder will be deleted by invoking the 'clean' target in
+# build.xml
+path.tmpdir=/tmp/core_build/
+
+
+# Path to a directory where the completed build will end up. Any place you like.
+# WARNING! This folder will be deleted by invoking the 'clean' target in
+# build.xml
+path.distdir=/tmp/core_dist/

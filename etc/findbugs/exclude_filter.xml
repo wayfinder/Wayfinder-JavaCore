@@ -1,0 +1,54 @@
+<FindBugsFilter>
+    <!-- ==== PUBLIC CLASSES ==== -->
+    
+    <!-- LightXmlPullIterator compares Strings using "==" instead of equals -->
+    <!-- This is done by design -->
+    <Match>
+        <Class name="com.wayfinder.core.shared.xml.LightXmlPullIterator"/>
+        <Bug pattern="ES_COMPARING_PARAMETER_STRING_WITH_EQ" />
+    </Match>
+    
+    <!-- This is also done by all classes parsing mc2 stuff" -->
+    <Match>
+        <Method name="parse" params="com.wayfinder.core.network.internal.mc2.MC2Parser" returns="void"/>
+        <Bug pattern="ES_COMPARING_PARAMETER_STRING_WITH_EQ" />
+    </Match>
+    
+    
+    <!--com.wayfinder.core.shared.util.IntVector.getArray() returns the -->
+    <!--internal array. This is by design -->
+    <Match>
+        <Class name="com.wayfinder.core.shared.util.IntVector" />
+        <Method name="getArray" />
+        <Bug pattern="EI_EXPOSE_REP" />
+    </Match>
+    
+    
+    <!-- ==== PRIVATE CLASSES ==== -->
+    
+    <!-- Disable all checks on JUnit tests -->
+    <Match>
+        <Class name="~.*Test$" />
+    </Match>
+    <Match>
+        <Package name="~test\..*" />
+    </Match>
+    
+    <!-- Ignore MALCIOUS_CODE category for internal classes -->
+    <!-- Allow return of internal arrays on internal classes -->
+    <Match>
+        <Or>
+            <Package name="~.*\.internal\.*" />
+            <Package name="~.*\.internal" />
+        </Or>
+        <Bug category="MALICIOUS_CODE" />
+    </Match>
+
+    <!--  See the comments for case ST_DATUMDONE in
+          com.wayfinder.core.route.internal.nav2route.Nav2RouteIterator.nextPoint(boolean) -->
+    <Match>
+        <Class name="com.wayfinder.core.route.internal.nav2route.Nav2RouteIterator" />
+        <Method name="nextPoint" />
+        <Bug pattern="SF_SWITCH_FALLTHROUGH" />
+    </Match>
+</FindBugsFilter>
